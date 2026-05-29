@@ -104,7 +104,13 @@ api.post("/publish", rateLimit(TIERS.anonymous), async (c) => {
   const token = generateToken();
   const tokenHash = await hashToken(token);
 
-  const isPermanent = permanent === true;
+  const user = c.get('user');
+
+  // Authenticated publishers default to permanent (no expiry).
+  // Explicit `permanent: false` or an explicit `ttl` opts back into expiration.
+  const isPermanent =
+    permanent === true ||
+    (permanent !== false && (typeof ttl !== "number" || ttl <= 0) && user !== null);
   const ttlSeconds =
     isPermanent ? null
     : typeof ttl === "number" && ttl > 0 ? Math.floor(ttl)
@@ -114,8 +120,6 @@ api.post("/publish", rateLimit(TIERS.anonymous), async (c) => {
   const expiresAt = ttlSeconds !== null
     ? new Date(now.getTime() + ttlSeconds * 1000).toISOString()
     : null;
-
-  const user = c.get('user');
 
   const metadata: PageMetadata = {
     id,
