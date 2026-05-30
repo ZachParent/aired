@@ -22,6 +22,9 @@
     repositionRaf: 0,
     observer: null,
   };
+  var PIN_SIZE = 18;
+  var PIN_INSET = 8;
+  var PIN_VIEWPORT_MARGIN = 6;
 
   function injectStyle() {
     if (document.getElementById("__aired-comment-style")) return;
@@ -361,8 +364,9 @@
       pin.type = "button";
       pin.className = "__aired-comment-pin";
       pin.setAttribute("aria-label", "Comment from " + authorName(comment.author));
-      var x = Math.min(window.innerWidth - 24, Math.max(6, rect.right - 9));
-      var y = Math.min(window.innerHeight - 24, Math.max(6, rect.top - 9));
+      var position = pinPosition(rect);
+      var x = position.x;
+      var y = position.y;
       pin.style.setProperty("--aired-x", x + "px");
       pin.style.setProperty("--aired-y", y + "px");
       pin.style.transform = "translate3d(" + x + "px," + y + "px,0)";
@@ -380,6 +384,28 @@
       });
       state.pinsLayer.appendChild(pin);
     });
+  }
+
+  function pinPosition(rect) {
+    var x = rect.right - PIN_SIZE - PIN_INSET;
+    var y = rect.top + PIN_INSET;
+
+    if (rect.width < PIN_SIZE + PIN_INSET * 2) {
+      x = rect.left + (rect.width - PIN_SIZE) / 2;
+    }
+    if (rect.height < PIN_SIZE + PIN_INSET * 2) {
+      y = rect.top + (rect.height - PIN_SIZE) / 2;
+    }
+
+    return {
+      x: Math.round(clamp(x, PIN_VIEWPORT_MARGIN, window.innerWidth - PIN_SIZE - PIN_VIEWPORT_MARGIN)),
+      y: Math.round(clamp(y, PIN_VIEWPORT_MARGIN, window.innerHeight - PIN_SIZE - PIN_VIEWPORT_MARGIN)),
+    };
+  }
+
+  function clamp(value, min, max) {
+    if (max < min) return min;
+    return Math.min(max, Math.max(min, value));
   }
 
   function scheduleReposition() {
