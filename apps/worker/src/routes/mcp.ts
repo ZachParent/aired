@@ -5,6 +5,7 @@ import type { Context } from "hono";
 import type { AppBindings } from "../types.js";
 import { loadStats, saveStats } from "../lib/stats.js";
 import { loadComments, pageIdFromUrlOrId, visibleComments } from "../lib/comments.js";
+import { verifyPagePin } from "../lib/page-access.js";
 import {
   generateId,
   generateToken,
@@ -193,12 +194,17 @@ function createAiredMcpServer(env: {
 
   server.tool(
     "list_comments",
-    "List element-level comments left on a published aired page. Pass either id or url.",
+    "List element-level comments left on a published aired page. Pass either id or url. For PIN-protected pages, provide pin or update_token.",
     {
       id: z.string().optional().describe("Published page id"),
       url: z.string().optional().describe("Published page URL, such as https://host/p/page-id"),
+      pin: z.string().optional().describe("PIN for a PIN-protected page"),
+      update_token: z
+        .string()
+        .optional()
+        .describe("Update token returned when the page was published"),
     },
-    async ({ id, url }) => {
+    async ({ id, url, pin, update_token }) => {
       const pageId = pageIdFromUrlOrId(id ?? url ?? "");
       if (pageId === null) {
         return {
@@ -221,6 +227,23 @@ function createAiredMcpServer(env: {
           content: [{ type: "text" as const, text: "Page metadata is corrupted" }],
           isError: true,
         };
+      }
+
+      if (metadata.pin !== null) {
+        const hasPin = typeof pin === "string" && verifyPagePin(pin, metadata.pin);
+        const hasUpdateToken =
+          typeof update_token === "string" && await verifyToken(update_token, metadata.tokenHash);
+        if (!hasPin && !hasUpdateToken) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "Page is PIN-protected. Provide a valid pin or update_token to list comments.",
+              },
+            ],
+            isError: true,
+          };
+        }
       }
 
       const comments = visibleComments(await loadComments(env.PAGES_KV, pageId));

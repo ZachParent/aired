@@ -1,9 +1,9 @@
 import { Hono } from "hono";
-import { getCookie } from "hono/cookie";
 import type { AppBindings } from "../types.js";
 import { parseMetadata, serializeMetadata } from "@aired/core";
 import { applyPageHeaders } from "../middleware/security.js";
 import { loadStats, saveStats } from "../lib/stats.js";
+import { hasPageAccess, setPageAccessCookie, verifyPagePin } from "../lib/page-access.js";
 
 const viewer = new Hono<AppBindings>();
 
@@ -37,8 +37,7 @@ viewer.get("/p/:id", async (c) => {
 
   // Check PIN protection
   if (metadata.pin !== null) {
-    const pinCookie = getCookie(c, `pin_${id}`) ?? null;
-    if (pinCookie !== metadata.pin) {
+    if (!(await hasPageAccess(c, id))) {
       return new Response(renderPinPage(id), {
         status: 200,
         headers: { "Content-Type": "text/html; charset=utf-8" },
@@ -145,20 +144,17 @@ viewer.post("/p/:id/verify-pin", async (c) => {
     return c.json({ error: "Page is not PIN protected" }, 400);
   }
 
-  if (pin !== metadata.pin) {
+  if (!verifyPagePin(pin, metadata.pin)) {
     return c.json({ error: "Incorrect PIN" }, 403);
   }
 
-  // Set a cookie and return success — client handles redirect
-  const headers = new Headers();
-  headers.set("Content-Type", "application/json");
-  // HttpOnly so JS can't read it; SameSite=Strict for security
-  headers.set(
-    "Set-Cookie",
-    `pin_${id}=${metadata.pin}; Path=/p/${id}; HttpOnly; SameSite=Strict; Max-Age=3600`,
-  );
+  try {
+    await setPageAccessCookie(c, id);
+  } catch {
+    return c.json({ error: "Page access is not configured" }, 503);
+  }
 
-  return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
+  return c.json({ ok: true });
 });
 
 // --- Helpers ---

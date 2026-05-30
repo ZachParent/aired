@@ -1,10 +1,10 @@
 import { Hono } from "hono";
-import { getCookie } from "hono/cookie";
 import type { Context } from "hono";
 import type { AppBindings } from "../types.js";
 import { parseMetadata } from "@aired/core";
 import { rateLimit } from "../middleware/rate-limit.js";
 import { TIERS } from "../lib/rate-limit-tiers.js";
+import { hasPageAccess } from "../lib/page-access.js";
 import {
   buildComment,
   getOrCreateCommentAuthor,
@@ -30,8 +30,7 @@ async function requirePageViewable(c: Context<AppBindings>, id: string) {
     return { ok: false as const, response: c.json({ error: "Page metadata is corrupted" }, 500) };
   }
   if (metadata.pin !== null) {
-    const pinCookie = getCookie(c, `pin_${id}`) ?? null;
-    if (pinCookie !== metadata.pin) {
+    if (!(await hasPageAccess(c, id))) {
       return { ok: false as const, response: c.json({ error: "PIN required" }, 403) };
     }
   }
