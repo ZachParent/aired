@@ -1,7 +1,18 @@
 diff --git a/dist/packToString.js b/dist/packToString.js
-index 69240fda5c72d96fdd2ffa4fdf83b9288e23fa96..c99e94e8269ddbf900925f8b0c695b0cd4212434 100644
+index 69240fda5c72d96fdd2ffa4fdf83b9288e23fa96..d4442e140cad5322efbd0f31818056a5f0751458 100644
 --- a/dist/packToString.js
 +++ b/dist/packToString.js
+@@ -90,8 +90,8 @@ const packToString = async (baseDir, inputFileText, fs) => {
+                             return match;
+                         });
+                         await Promise.all(replacementTasks);
+-                        declaration.value = declaration.value.replace(/url\((.*?)\)/g, (_match, url) => {
+-                            return replacements.get(url);
++                        declaration.value = declaration.value.replace(/url\((.*?)\)/g, (match, url) => {
++                            return replacements.get(url) ?? match;
+                         });
+                     }
+                 }
 @@ -129,7 +129,10 @@ const packToString = async (baseDir, inputFileText, fs) => {
          content = content.replace(/<script>/g, '<\\script>');
          content = content.replace(/<\/script>/g, '<\\/script>');
@@ -14,3 +25,44 @@ index 69240fda5c72d96fdd2ffa4fdf83b9288e23fa96..c99e94e8269ddbf900925f8b0c695b0c
      };
      const processImgTag = async (_name, attrs) => {
          const src = attrValue(attrs, 'src');
+diff --git a/packToString.ts b/packToString.ts
+index a52bb1d6ab95a111969ea22e59db3f775a046f0f..4bc21b5da285891842d621f3e9edf803e724ba65 100644
+--- a/packToString.ts
++++ b/packToString.ts
+@@ -104,8 +104,8 @@ const packToString = async (baseDir: string, inputFileText: string, fs: FileApi)
+ 
+ 						await Promise.all(replacementTasks);
+ 
+-						declaration.value = declaration.value.replace(/url\((.*?)\)/g, (_match: string, url: string) => {
+-							return replacements.get(url);
++						declaration.value = declaration.value.replace(/url\((.*?)\)/g, (match: string, url: string) => {
++							return replacements.get(url) ?? match;
+ 						});
+ 
+ 					}
+@@ -150,7 +150,10 @@ const packToString = async (baseDir: string, inputFileText: string, fs: FileApi)
+ 		content = content.replace(/<\/script>/g, '<\\/script>');
+ 		content = content.replace(/<!--/g, '<\\!--');
+ 
+-		return `<script>${content}</script>`;
++		const modAttrs = { ...attrs };
++		delete modAttrs.src;
++		const attrHtml = attributesHtml(modAttrs);
++		return `<script${attrHtml ? ' ' + attrHtml : ''}>${content}</script>`;
+ 	};
+ 
+ 	const processImgTag = async (_name: string, attrs: HtmlAttrs) => {
+@@ -195,7 +198,7 @@ const packToString = async (baseDir: string, inputFileText: string, fs: FileApi)
+ 		onopentag: async (name: string, attrs: HtmlAttrs) => {
+ 			name = name.toLowerCase();
+ 
+-			let processedResult = '';
++			let processedResult: string | null = '';
+ 
+ 			if (name === 'link') {
+ 				processedResult = await processLinkTag(name, attrs);
+@@ -251,4 +254,3 @@ const packToString = async (baseDir: string, inputFileText: string, fs: FileApi)
+ };
+ 
+ export default packToString;
+-

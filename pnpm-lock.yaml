@@ -14,7 +14,9 @@ overrides:
   qs: 6.15.2
 
 patchedDependencies:
-  '@joplin/htmlpack@3.5.1': 659f0a884fdb02acceabb714dca2d915dc1021cd3ce3e0917b30cebdd794fea8
+  '@joplin/htmlpack@3.5.1':
+    hash: 6d80d059416f0ea3b103627365617b60b95a8eadc47d71d7e7d612cabeb998cb
+    path: patches/@joplin__htmlpack@3.5.1.patch
 
 importers:
 
@@ -37,7 +39,7 @@ importers:
         version: 14.0.0(commander@14.0.3)
       '@joplin/htmlpack':
         specifier: ^3.5.1
-        version: 3.5.1(patch_hash=659f0a884fdb02acceabb714dca2d915dc1021cd3ce3e0917b30cebdd794fea8)
+        version: 3.5.1(patch_hash=6d80d059416f0ea3b103627365617b60b95a8eadc47d71d7e7d612cabeb998cb)
       commander:
         specifier: ^14.0.0
         version: 14.0.3
@@ -74,7 +76,7 @@ importers:
         version: link:../../packages/core
       '@joplin/htmlpack':
         specifier: ^3.5.1
-        version: 3.5.1(patch_hash=659f0a884fdb02acceabb714dca2d915dc1021cd3ce3e0917b30cebdd794fea8)
+        version: 3.5.1(patch_hash=6d80d059416f0ea3b103627365617b60b95a8eadc47d71d7e7d612cabeb998cb)
       '@modelcontextprotocol/sdk':
         specifier: 1.29.0
         version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)
@@ -2840,7 +2842,7 @@ snapshots:
       domutils: 3.2.2
       entities: 2.2.0
 
-  '@joplin/htmlpack@3.5.1(patch_hash=659f0a884fdb02acceabb714dca2d915dc1021cd3ce3e0917b30cebdd794fea8)':
+  '@joplin/htmlpack@3.5.1(patch_hash=6d80d059416f0ea3b103627365617b60b95a8eadc47d71d7e7d612cabeb998cb)':
     dependencies:
       '@adobe/css-tools': 4.4.3
       '@joplin/fork-htmlparser2': 4.1.60

@@ -116,7 +116,11 @@ server.tool(
             },
             async readFileDataUri(p: string) {
               const { default: Datauri } = await import("datauri/sync");
-              return Datauri(p).content;
+              const content = Datauri(p).content;
+              if (content === undefined) {
+                throw new Error(`Failed to encode file as data URI: ${p}`);
+              }
+              return content;
             },
           });
         } else {
