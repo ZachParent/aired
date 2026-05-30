@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import type { AppBindings } from '../types.js';
 import {
   kvKeys,
@@ -34,6 +34,27 @@ const ALLOWED_RETURN_PREFIX = '/p/';
 
 function isAllowedReturn(path: string): boolean {
   return ALLOWED_RETURN_PATHS.includes(path) || path.startsWith(ALLOWED_RETURN_PREFIX);
+}
+
+function isConfiguredSecret(value: string | undefined): value is string {
+  return typeof value === 'string' && value.trim().length > 0 && value !== 'undefined';
+}
+
+function requireAuthConfig(c: Context<AppBindings>): Response | null {
+  const missing = [
+    ['GITHUB_CLIENT_ID', c.env.GITHUB_CLIENT_ID],
+    ['GITHUB_CLIENT_SECRET', c.env.GITHUB_CLIENT_SECRET],
+    ['SESSION_SECRET', c.env.SESSION_SECRET],
+  ].filter(([, value]) => !isConfiguredSecret(value));
+
+  if (missing.length === 0) {
+    return null;
+  }
+
+  console.error('GitHub auth is not configured', {
+    missing: missing.map(([key]) => key),
+  });
+  return c.json({ error: 'GitHub authentication is not configured.' }, 503);
 }
 
 /**
@@ -96,6 +117,9 @@ async function upsertUser(
 
 // GET /auth/github — initiate web OAuth flow
 auth.get('/github', rateLimit(TIERS.oauth_init), async (c) => {
+  const configError = requireAuthConfig(c);
+  if (configError !== null) return configError;
+
   const url = new URL(c.req.url);
   const returnParam = url.searchParams.get('return') ?? '/dashboard';
   const returnPath = isAllowedReturn(returnParam) ? returnParam : '/dashboard';
@@ -126,6 +150,9 @@ auth.get('/github', rateLimit(TIERS.oauth_init), async (c) => {
 
 // GET /auth/cli — initiate CLI OAuth flow
 auth.get('/cli', rateLimit(TIERS.oauth_init), async (c) => {
+  const configError = requireAuthConfig(c);
+  if (configError !== null) return configError;
+
   const url = new URL(c.req.url);
   const portParam = url.searchParams.get('port');
   const clientState = url.searchParams.get('state') ?? '';
@@ -165,6 +192,9 @@ auth.get('/cli', rateLimit(TIERS.oauth_init), async (c) => {
 
 // GET /auth/callback — GitHub OAuth callback
 auth.get('/callback', rateLimit(TIERS.oauth_init), async (c) => {
+  const configError = requireAuthConfig(c);
+  if (configError !== null) return configError;
+
   const url = new URL(c.req.url);
   const errorParam = url.searchParams.get('error');
 
