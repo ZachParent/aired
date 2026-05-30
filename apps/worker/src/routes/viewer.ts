@@ -94,8 +94,10 @@ viewer.get("/p/:id", async (c) => {
   const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
   const pageTitle = titleMatch?.[1]?.trim() || metadata.title || "Shared page";
 
+  const origin = new URL(c.req.url).origin;
   const wrappedHtml = injectAiredBar(html, {
     id,
+    origin,
     title: pageTitle,
     readCount: newReadCount,
   });
@@ -167,11 +169,11 @@ viewer.post("/p/:id/verify-pin", async (c) => {
  */
 function injectAiredBar(
   html: string,
-  opts: { id: string; title: string; readCount: number },
+  opts: { id: string; origin: string; title: string; readCount: number },
 ): string {
-  const { id, title, readCount } = opts;
+  const { id, origin, title, readCount } = opts;
 
-  const ogImageUrl = `https://aired.sh/og/${id}`;
+  const ogImageUrl = `${origin}/og/${id}`;
   const ogTags = `
   <!-- aired OG tags -->
   <meta property="og:title" content="${escapeAttr(title)}" />
@@ -301,14 +303,14 @@ function injectAiredBar(
   }
 </style>
 <div id="__aired-bar" role="complementary" aria-label="Published with aired">
-  <a href="https://aired.sh" target="_blank" rel="noopener" class="__aired-brand" aria-label="aired.sh">
+  <a href="${origin}" target="_blank" rel="noopener" class="__aired-brand" aria-label="aired">
     <svg class="__aired-mark" viewBox="0 0 32 32" aria-hidden="true">
       <circle cx="9" cy="23" r="3.5" fill="currentColor"/>
       <path d="M9 13 A10 10 0 0 1 19 23" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
       <path d="M9 6 A17 17 0 0 1 26 23" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
     </svg>
   </a>
-  <a href="https://aired.sh" target="_blank" rel="noopener" class="__aired-wordmark">aired</a>
+  <a href="${origin}" target="_blank" rel="noopener" class="__aired-wordmark">aired</a>
   <span class="__aired-meta">
     <span class="__aired-sep"></span>
     <span class="__aired-views">${readCount.toLocaleString('en-US')} view${readCount !== 1 ? 's' : ''}</span>

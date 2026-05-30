@@ -20,7 +20,7 @@ import type { PageMetadata } from "@aired/core";
 function createAiredMcpServer(env: {
   PAGES_BUCKET: R2Bucket;
   PAGES_KV: KVNamespace;
-}) {
+}, origin: string) {
   const server = new McpServer({
     name: "aired",
     version: "1.0.0",
@@ -102,7 +102,7 @@ function createAiredMcpServer(env: {
           content: [
             {
               type: "text" as const,
-              text: `Updated https://aired.sh/p/${existingId}\nUpdate token: ${update_token}\nPass update_token and id to update again.`,
+              text: `Updated ${origin}/p/${existingId}\nUpdate token: ${update_token}\nPass update_token and id to update again.`,
             },
           ],
         };
@@ -175,7 +175,7 @@ function createAiredMcpServer(env: {
       }
 
       const lines: string[] = [
-        `Published to https://aired.sh/p/${pageId}`,
+        `Published to ${origin}/p/${pageId}`,
         `Update token: ${token}`,
         expiresAt
           ? `Expires: ${new Date(expiresAt).toISOString().split("T")[0]}`
@@ -198,7 +198,8 @@ function createAiredMcpServer(env: {
  * Creates a new McpServer instance per request (required by SDK 1.26.0+).
  */
 export async function handleMcp(c: Context<AppBindings>) {
-  const server = createAiredMcpServer(c.env);
+  const origin = new URL(c.req.url).origin;
+  const server = createAiredMcpServer(c.env, origin);
   const handler = createMcpHandler(server, { route: "/mcp" });
   return handler(c.req.raw, c.env, c.executionCtx);
 }
