@@ -117,7 +117,7 @@ auth.get('/github', rateLimit(TIERS.oauth_init), async (c) => {
 
   const githubUrl = new URL('https://github.com/login/oauth/authorize');
   githubUrl.searchParams.set('client_id', c.env.GITHUB_CLIENT_ID);
-  githubUrl.searchParams.set('redirect_uri', 'https://aired.sh/auth/callback');
+  githubUrl.searchParams.set('redirect_uri', `${new URL(c.req.url).origin}/auth/callback`);
   githubUrl.searchParams.set('scope', 'read:user user:email');
   githubUrl.searchParams.set('state', state);
 
@@ -156,7 +156,7 @@ auth.get('/cli', rateLimit(TIERS.oauth_init), async (c) => {
 
   const githubUrl = new URL('https://github.com/login/oauth/authorize');
   githubUrl.searchParams.set('client_id', c.env.GITHUB_CLIENT_ID);
-  githubUrl.searchParams.set('redirect_uri', 'https://aired.sh/auth/callback');
+  githubUrl.searchParams.set('redirect_uri', `${new URL(c.req.url).origin}/auth/callback`);
   githubUrl.searchParams.set('scope', 'read:user user:email');
   githubUrl.searchParams.set('state', stateWorker);
 
