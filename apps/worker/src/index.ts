@@ -9,6 +9,7 @@ import { handleMcp } from "./routes/mcp.js";
 import { og } from "./routes/og.js";
 import { auth } from "./routes/auth.js";
 import { dashboard } from "./routes/dashboard.js";
+import { comments } from "./routes/comments.js";
 import { rateLimit } from "./middleware/rate-limit.js";
 import { corsMiddleware } from "./middleware/cors.js";
 import { authMiddleware } from "./middleware/auth.js";
@@ -56,6 +57,9 @@ app.route("/auth", auth);
 
 // Mount me routes before api so /api/me/* matches first
 app.route("/api/me", me);
+
+// Mount comment routes before the general API routes.
+app.route("/api", comments);
 
 // Mount API routes
 app.route("/api", api);

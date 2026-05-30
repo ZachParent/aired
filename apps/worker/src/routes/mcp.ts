@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { Context } from "hono";
 import type { AppBindings } from "../types.js";
 import { loadStats, saveStats } from "../lib/stats.js";
+import { loadComments, pageIdFromUrlOrId, visibleComments } from "../lib/comments.js";
 import {
   generateId,
   generateToken,
@@ -186,6 +187,60 @@ function createAiredMcpServer(env: {
 
       return {
         content: [{ type: "text" as const, text: lines.join("\n") }],
+      };
+    },
+  );
+
+  server.tool(
+    "list_comments",
+    "List element-level comments left on a published aired page. Pass either id or url.",
+    {
+      id: z.string().optional().describe("Published page id"),
+      url: z.string().optional().describe("Published page URL, such as https://host/p/page-id"),
+    },
+    async ({ id, url }) => {
+      const pageId = pageIdFromUrlOrId(id ?? url ?? "");
+      if (pageId === null) {
+        return {
+          content: [{ type: "text" as const, text: "Provide a page id or /p/:id URL." }],
+          isError: true,
+        };
+      }
+
+      const raw = await env.PAGES_KV.get(`page:${pageId}`);
+      if (raw === null) {
+        return {
+          content: [{ type: "text" as const, text: "Page not found" }],
+          isError: true,
+        };
+      }
+
+      const metadata = parseMetadata(raw);
+      if (metadata === null) {
+        return {
+          content: [{ type: "text" as const, text: "Page metadata is corrupted" }],
+          isError: true,
+        };
+      }
+
+      const comments = visibleComments(await loadComments(env.PAGES_KV, pageId));
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              {
+                pageId,
+                title: metadata.title,
+                url: `${origin}/p/${pageId}`,
+                count: comments.length,
+                comments,
+              },
+              null,
+              2,
+            ),
+          },
+        ],
       };
     },
   );

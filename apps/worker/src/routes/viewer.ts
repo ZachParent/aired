@@ -164,14 +164,13 @@ viewer.post("/p/:id/verify-pin", async (c) => {
 // --- Helpers ---
 
 /**
- * Injects OG meta tags into <head> and appends a floating "Aired bar" before </body>.
- * The bar is minimal: "Powered by aired · Report · Views: N"
+ * Injects OG meta tags into <head> and appends the floating comment control before </body>.
  */
 function injectAiredBar(
   html: string,
   opts: { id: string; origin: string; title: string; readCount: number },
 ): string {
-  const { id, origin, title, readCount } = opts;
+  const { id, origin, title } = opts;
 
   const ogImageUrl = `${origin}/og/${id}`;
   const ogTags = `
@@ -192,8 +191,10 @@ function injectAiredBar(
     out = ogTags + "\n" + html;
   }
 
+  const escapedOrigin = escapeAttr(origin);
+  const escapedId = escapeAttr(id);
   const bar = `
-<!-- aired bar -->
+<!-- aired comments -->
 <style>
   #__aired-bar {
     position: fixed;
@@ -233,14 +234,24 @@ function injectAiredBar(
                 0 0 0 3px rgba(124, 106, 239, 0.08);
     transform: translateY(-1px);
   }
-  #__aired-bar a {
+  #__aired-bar .__aired-comment-button {
+    appearance: none;
+    border: 0;
+    background: transparent;
     color: inherit;
-    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    line-height: 1;
+    cursor: crosshair;
   }
-  #__aired-bar a:focus-visible {
+  #__aired-bar .__aired-comment-button:focus-visible {
     outline: 1px solid rgba(124, 106, 239, 0.6);
     outline-offset: 2px;
-    border-radius: 3px;
+    border-radius: 999px;
   }
   #__aired-bar .__aired-mark {
     width: 12px;
@@ -258,95 +269,37 @@ function injectAiredBar(
     color: rgba(237,237,239,0.85);
     font-weight: 600;
   }
-  #__aired-bar .__aired-meta {
+  #__aired-bar .__aired-comment-count {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    max-width: 0;
-    overflow: hidden;
-    opacity: 0;
-    transition: max-width 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-                opacity 200ms ease,
-                margin 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
-    margin-left: 0;
-  }
-  #__aired-bar:hover .__aired-meta,
-  #__aired-bar:focus-within .__aired-meta,
-  #__aired-bar.is-open .__aired-meta {
-    max-width: 220px;
-    opacity: 1;
-    margin-left: 4px;
-  }
-  #__aired-bar .__aired-sep {
-    width: 1px;
-    height: 9px;
-    background: rgba(255,255,255,0.12);
-    flex-shrink: 0;
-  }
-  #__aired-bar .__aired-views {
-    color: rgba(237,237,239,0.55);
+    justify-content: center;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: rgba(124, 106, 239, 0.2);
+    color: rgba(237,237,239,0.78);
+    font-size: 9px;
     font-variant-numeric: tabular-nums;
-  }
-  #__aired-bar .__aired-report {
-    color: rgba(237,237,239,0.45);
-    transition: color 140ms ease;
-  }
-  #__aired-bar .__aired-report:hover {
-    color: rgba(237,237,239,0.9);
   }
   @media (prefers-reduced-motion: reduce) {
     #__aired-bar,
-    #__aired-bar .__aired-mark,
-    #__aired-bar .__aired-meta {
+    #__aired-bar .__aired-mark {
       transition: none;
     }
   }
 </style>
-<div id="__aired-bar" role="complementary" aria-label="Published with aired">
-  <a href="${origin}" target="_blank" rel="noopener" class="__aired-brand" aria-label="aired">
+<div id="__aired-bar" role="complementary" aria-label="Leave a comment" data-aired-page-id="${escapedId}" data-aired-origin="${escapedOrigin}">
+  <button type="button" id="__aired-comment-button" class="__aired-comment-button" aria-pressed="false" title="Leave a comment">
     <svg class="__aired-mark" viewBox="0 0 32 32" aria-hidden="true">
-      <circle cx="9" cy="23" r="3.5" fill="currentColor"/>
-      <path d="M9 13 A10 10 0 0 1 19 23" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-      <path d="M9 6 A17 17 0 0 1 26 23" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      <path d="M8 9.5C8 7.6 9.6 6 11.5 6h9C22.4 6 24 7.6 24 9.5v6.2c0 1.9-1.6 3.5-3.5 3.5h-4.2l-4.9 4.2v-4.2c-1.9 0-3.4-1.6-3.4-3.5V9.5Z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+      <path d="M12.8 11.8h6.4M12.8 15h4.5" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
     </svg>
-  </a>
-  <a href="${origin}" target="_blank" rel="noopener" class="__aired-wordmark">aired</a>
-  <span class="__aired-meta">
-    <span class="__aired-sep"></span>
-    <span class="__aired-views">${readCount.toLocaleString('en-US')} view${readCount !== 1 ? 's' : ''}</span>
-    <span class="__aired-sep"></span>
-    <a href="#" class="__aired-report" data-aired-report="${id}">report</a>
-  </span>
+    <span class="__aired-wordmark">comment</span>
+    <span id="__aired-comment-count" class="__aired-comment-count" hidden></span>
+  </button>
 </div>
-<script>
-(function(){
-  var bar = document.getElementById('__aired-bar');
-  if (!bar) return;
-  var hasHover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
-  if (!hasHover) {
-    bar.addEventListener('click', function(e){
-      if (e.target.closest('a')) return;
-      bar.classList.toggle('is-open');
-    });
-    document.addEventListener('click', function(e){
-      if (!bar.contains(e.target)) bar.classList.remove('is-open');
-    });
-  }
-  var report = bar.querySelector('[data-aired-report]');
-  if (report) {
-    report.addEventListener('click', function(e){
-      e.preventDefault();
-      if (!confirm('Report this page as inappropriate?')) return;
-      fetch('/api/report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: report.getAttribute('data-aired-report'), reason: 'reported via viewer bar' })
-      }).then(function(){ alert('Reported. Thank you.'); })
-        .catch(function(){ alert('Failed to report. Try again.'); });
-    });
-  }
-})();
-</script>`;
+<script src="${escapedOrigin}/comments.js" defer></script>`;
 
   // Inject bar before </body>
   const barOut = out.replace(/<\/body>/i, `${bar}\n</body>`);
