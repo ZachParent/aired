@@ -39,6 +39,9 @@ app.use("*", authMiddleware);
 // Health check
 app.get("/health", (c) => c.json({ status: "ok" }));
 
+// The public homepage is intentionally disabled for this self-hosted instance.
+app.on(["GET", "HEAD"], ["/", "/index.html"], (c) => c.text("Not found", 404));
+
 // MCP Streamable HTTP endpoint
 // POST is a publish/update mutation — rate-limited.
 // Non-POST (initialize, tools/list, etc.) passes through without rate-limit.
