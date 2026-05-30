@@ -46,6 +46,9 @@
       "#__aired-comment-popover .__aired-comment-avatar{width:22px;height:22px;border-radius:999px;background:rgba(124,106,239,.22);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;overflow:hidden;flex:0 0 auto;}" +
       "#__aired-comment-popover .__aired-comment-avatar img{width:100%;height:100%;display:block;object-fit:cover;}" +
       "#__aired-comment-popover .__aired-comment-name{font-size:12px;font-weight:650;color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}" +
+      "#__aired-comment-popover .__aired-comment-thread{display:flex;flex-direction:column;gap:10px;max-height:min(320px,calc(100vh - 150px));overflow:auto;padding-right:2px;}" +
+      "#__aired-comment-popover .__aired-comment-item{border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:9px;}" +
+      "#__aired-comment-popover .__aired-comment-item:last-child{border-bottom:0;padding-bottom:0;}" +
       "#__aired-comment-popover textarea{width:100%;min-height:78px;resize:vertical;border:1px solid rgba(255,255,255,.14);border-radius:8px;background:rgba(255,255,255,.06);color:#fff;padding:8px;font:12px/1.4 Inter,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;outline:none;box-sizing:border-box;}" +
       "#__aired-comment-popover textarea:focus{border-color:rgba(124,106,239,.72);box-shadow:0 0 0 3px rgba(124,106,239,.12);}" +
       "#__aired-comment-popover .__aired-comment-body{font-size:12px;line-height:1.45;white-space:pre-wrap;word-break:break-word;margin:0;color:rgba(245,245,247,.86);}" +
@@ -56,6 +59,7 @@
       "#__aired-comment-popover .__aired-comment-primary{background:#7c6aef;color:#fff;}" +
       "#__aired-comment-popover .__aired-comment-error{display:none;margin-top:7px;color:#ffb4b4;font-size:11px;line-height:1.35;}" +
       "#__aired-comment-popover.has-error .__aired-comment-error{display:block;}" +
+      ".__aired-comment-pin-count{position:absolute;right:-3px;bottom:-3px;min-width:13px;height:13px;padding:0 3px;border-radius:999px;background:#fff;color:#2f236d;border:1px solid rgba(124,106,239,.65);font:800 8px/12px Inter,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.25);}" +
       "@media (prefers-reduced-motion:reduce){#__aired-comment-highlight,.__aired-comment-pin,.__aired-comment-preview{transition:none;}}";
     document.head.appendChild(style);
   }
@@ -244,7 +248,10 @@
     state.popover = null;
   }
 
-  function showReadPopover(comment, target) {
+  function showReadPopover(comments, target) {
+    var group = Array.isArray(comments) ? comments : [comments];
+    var latest = group[group.length - 1];
+    if (!latest) return;
     closePopover();
     state.mode = "reading";
     state.selectedTarget = target;
@@ -254,8 +261,24 @@
     var popover = document.createElement("div");
     popover.id = "__aired-comment-popover";
     popover.setAttribute("role", "dialog");
-    popover.setAttribute("aria-label", "Comment");
+    popover.setAttribute("aria-label", group.length > 1 ? "Comments" : "Comment");
     popover.innerHTML =
+      '<div class="__aired-comment-thread">' +
+      group.map(renderThreadItem).join("") +
+      "</div>" +
+      '<div class="__aired-comment-actions">' +
+      '<button type="button" class="__aired-comment-secondary" data-aired-close>Close</button>' +
+      "</div>";
+    document.body.appendChild(popover);
+    state.popover = popover;
+    positionPopoverNear(target || document.body);
+    var close = popover.querySelector("[data-aired-close]");
+    if (close) close.addEventListener("click", closeAll);
+  }
+
+  function renderThreadItem(comment) {
+    return (
+      '<div class="__aired-comment-item">' +
       '<div class="__aired-comment-head">' +
       renderAvatar(comment.author) +
       '<div class="__aired-comment-name">' +
@@ -265,14 +288,8 @@
       '<p class="__aired-comment-body">' +
       escapeHtml(comment.body) +
       "</p>" +
-      '<div class="__aired-comment-actions">' +
-      '<button type="button" class="__aired-comment-secondary" data-aired-close>Close</button>' +
-      "</div>";
-    document.body.appendChild(popover);
-    state.popover = popover;
-    positionPopoverNear(target || document.body);
-    var close = popover.querySelector("[data-aired-close]");
-    if (close) close.addEventListener("click", closeAll);
+      "</div>"
+    );
   }
 
   async function submitComment(textarea, buttonEl, target) {
@@ -355,15 +372,23 @@
   function renderPins() {
     if (!state.pinsLayer) return;
     state.pinsLayer.textContent = "";
-    state.comments.forEach(function (comment) {
-      var target = resolveAnchor(comment.anchor);
+    commentGroups().forEach(function (group) {
+      var target = group.target;
+      var comments = group.comments;
+      var latest = comments[comments.length - 1];
+      if (!latest) return;
       if (!target) return;
       var rect = target.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
       var pin = document.createElement("button");
       pin.type = "button";
       pin.className = "__aired-comment-pin";
-      pin.setAttribute("aria-label", "Comment from " + authorName(comment.author));
+      pin.setAttribute(
+        "aria-label",
+        comments.length === 1
+          ? "Comment from " + authorName(latest.author)
+          : comments.length + " comments on this element",
+      );
       var position = pinPosition(rect);
       var x = position.x;
       var y = position.y;
@@ -371,19 +396,41 @@
       pin.style.setProperty("--aired-y", y + "px");
       pin.style.transform = "translate3d(" + x + "px," + y + "px,0)";
       pin.innerHTML =
-        renderPinIcon(comment.author) +
+        renderPinIcon(latest.author) +
+        renderPinCount(comments.length) +
         '<span class="__aired-comment-preview"><strong>' +
-        escapeHtml(authorName(comment.author)) +
+        escapeHtml(
+          comments.length === 1
+            ? authorName(latest.author)
+            : comments.length + " comments",
+        ) +
         "</strong><span>" +
-        escapeHtml(comment.body.length > 160 ? comment.body.slice(0, 157) + "..." : comment.body) +
+        escapeHtml(latest.body.length > 160 ? latest.body.slice(0, 157) + "..." : latest.body) +
         "</span></span>";
       pin.addEventListener("click", function (event) {
         event.preventDefault();
         event.stopPropagation();
-        showReadPopover(comment, target);
+        showReadPopover(comments, target);
       });
       state.pinsLayer.appendChild(pin);
     });
+  }
+
+  function commentGroups() {
+    var groups = [];
+    state.comments.forEach(function (comment) {
+      var target = resolveAnchor(comment.anchor);
+      if (!target) return;
+      var group = groups.find(function (item) {
+        return item.target === target;
+      });
+      if (!group) {
+        group = { target: target, comments: [] };
+        groups.push(group);
+      }
+      group.comments.push(comment);
+    });
+    return groups;
   }
 
   function pinPosition(rect) {
@@ -546,6 +593,11 @@
       return '<img src="' + escapeHtml(author.avatarUrl) + '" alt="">';
     }
     return escapeHtml(iconGlyph(author, authorName(author)));
+  }
+
+  function renderPinCount(count) {
+    if (count <= 1) return "";
+    return '<span class="__aired-comment-pin-count">' + escapeHtml(count > 9 ? "9+" : count) + "</span>";
   }
 
   function iconGlyph(author, name) {
